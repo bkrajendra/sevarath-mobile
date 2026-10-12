@@ -6,7 +6,7 @@ System-level docs (architecture, API contract, product plan) stay in the main re
 
 ## Releases
 
-Push a commit to `main` that bumps `version:` in `pubspec.yaml` - the `Tag Release` workflow creates the matching `vX.Y.Z` tag automatically, which triggers `Mobile APK Release` to build and publish signed rider+driver APKs to that tag's GitHub Release. `Mobile APK Release` can also be run manually (`workflow_dispatch`) to re-release an existing tag.
+Push a commit to `main` that bumps `version:` in `pubspec.yaml` - the `Mobile Release` workflow creates the matching `vX.Y.Z` tag automatically and builds+publishes signed rider+driver APKs to that tag's GitHub Release. A push that doesn't change the version is a no-op. The same workflow can also be run manually (`workflow_dispatch`, with an existing `tag_name`) to re-release a tag, e.g. after fixing secrets or retrying a failed build.
 
 ## Getting Started
 

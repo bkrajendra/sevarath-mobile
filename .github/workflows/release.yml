@@ -1,0 +1,137 @@
+name: Mobile Release
+
+# Makes pubspec.yaml's `version:` the single source of truth for releases.
+# On every push to main, the `tag` job checks whether that version already
+# has a tag; if not, it creates+pushes one and `build-and-release` (in the
+# SAME workflow run, via `needs:`) builds signed APKs and publishes them to
+# that tag's GitHub Release. A version that hasn't changed is a no-op.
+#
+# Combined into one workflow (rather than a tag-push-triggered second
+# workflow) because pushes made with the default GITHUB_TOKEN don't trigger
+# other workflow runs - `needs:` is what actually chains these two steps.
+#
+# workflow_dispatch with tag_name lets you manually (re-)release an existing
+# tag, e.g. after fixing secrets or retrying a failed build.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Existing tag to (re-)release, e.g. v1.4.0. Leave empty to auto-detect from pubspec.yaml.'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+      should_release: ${{ steps.resolve.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag and whether to release
+        id: resolve
+        run: |
+          if [ -n "${{ inputs.tag_name }}" ]; then
+            TAG="${{ inputs.tag_name }}"
+            if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+              echo "Tag $TAG does not exist in this repo." >&2
+              exit 1
+            fi
+            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed -E 's/version:[[:space:]]*//' | cut -d'+' -f1)
+          if [ -z "$VERSION" ]; then
+            echo "Could not parse version from pubspec.yaml" >&2
+            exit 1
+          fi
+          TAG="v$VERSION"
+
+          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
+            echo "$TAG already exists - no version bump, nothing to release."
+            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-release:
+    needs: tag
+    if: needs.tag.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.tag_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+
+      - run: flutter pub get
+
+      - name: Set up release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d -i > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      # google-services.json is gitignored (kept local, not committed - see .gitignore). Stored
+      # as the raw JSON text (not base64) in the GOOGLE_SERVICES_JSON secret - a base64 round
+      # trip through Windows PowerShell mangled it the first time this was set up in sevarath;
+      # `gh secret set NAME --body-file google-services.json` sidesteps that entirely.
+      - name: Set up Firebase config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      # Two installable apps from one codebase (android/app/build.gradle.kts's productFlavors) -
+      # build both so every release carries a rider and a driver APK.
+      - run: flutter build apk --release --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
+      - run: flutter build apk --release --flavor driver -t lib/main_driver.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
+
+      - name: Rename APKs
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-user-release.apk "dist/SevaRath-${{ needs.tag.outputs.tag_name }}.apk"
+          cp build/app/outputs/flutter-apk/app-driver-release.apk "dist/SevaRath-Driver-${{ needs.tag.outputs.tag_name }}.apk"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.tag.outputs.tag_name }}
+          files: |
+            dist/SevaRath-${{ needs.tag.outputs.tag_name }}.apk
+            dist/SevaRath-Driver-${{ needs.tag.outputs.tag_name }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
