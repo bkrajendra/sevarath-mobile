@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E7E6C9F0D06CCF9E683E22D /* GoogleService-Info.plist in Sources */ = {isa = PBXBuildFile; fileRef = 5AEDC0CCCEFF2C731B5382C5 /* GoogleService-Info.plist */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		3569B9AEBD37067F58EED2ED /* GoogleService-Info-driver.plist in Sources */ = {isa = PBXBuildFile; fileRef = C21F2FD2B12F6185D65B6E52 /* GoogleService-Info-driver.plist */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
@@ -58,6 +60,7 @@
 		3992315D44C90E60DD8F8595 /* Pods-RunnerTests.debug-user.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-user.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-user.xcconfig"; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4EF8DCAE3EF338C3AC4DBE73 /* Pods-Runner.profile-user.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile-user.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile-user.xcconfig"; sourceTree = "<group>"; };
+		5AEDC0CCCEFF2C731B5382C5 /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		710A34309CEC90FCDFD68A4D /* Pods-Runner.release-driver.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release-driver.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release-driver.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -80,6 +83,7 @@
 		AC7D4D7E1FD368DF9C820EA4 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		B3E8A92DC5113B0847FF3C03 /* Pods-Runner.debug-driver.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug-driver.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug-driver.xcconfig"; sourceTree = "<group>"; };
 		B875833526AB8ECD2CBFD222 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		C21F2FD2B12F6185D65B6E52 /* GoogleService-Info-driver.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-driver.plist"; sourceTree = "<group>"; };
 		D345267F6E0C27A3AC3AD874 /* Pods-Runner.profile-driver.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile-driver.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile-driver.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -157,6 +161,8 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				5AEDC0CCCEFF2C731B5382C5 /* GoogleService-Info.plist */,
+				C21F2FD2B12F6185D65B6E52 /* GoogleService-Info-driver.plist */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -226,6 +232,7 @@
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
+				B2FCBC1D77E4B04F75398AA1 /* Select flavor GoogleService-Info.plist */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
@@ -381,6 +388,24 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
 		};
+		B2FCBC1D77E4B04F75398AA1 /* Select flavor GoogleService-Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Select flavor GoogleService-Info.plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "case \"${CONFIGURATION}\" in\n  *-driver)\n    cp \"${SRCROOT}/Runner/GoogleService-Info-driver.plist\" \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n    echo \"Using driver GoogleService-Info.plist\"\n    ;;\n  *)\n    echo \"Using default (rider) GoogleService-Info.plist\"\n    ;;\nesac\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -399,6 +424,8 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
+				0E7E6C9F0D06CCF9E683E22D /* GoogleService-Info.plist in Sources */,
+				3569B9AEBD37067F58EED2ED /* GoogleService-Info-driver.plist in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
