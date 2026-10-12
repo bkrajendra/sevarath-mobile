@@ -51,3 +51,6 @@ app.*.map.json
 /android/key.properties
 *.jks
 *.keystore
+
+# superpowers plan-execution scratch (ledgers, briefs, review packages)
+.superpowers/
