@@ -1,0 +1,91 @@
+name: Mobile APK Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Existing tag to (re-)release, e.g. v1.4.0. Leave empty to use the tag that triggered this run.'
+        required: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          TAG="${{ inputs.tag_name }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "$GITHUB_REF" ]; then
+            echo "No tag resolved - pass tag_name when dispatching manually." >&2
+            exit 1
+          fi
+          echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+
+      - run: flutter pub get
+
+      - name: Set up release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d -i > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      # google-services.json is gitignored (kept local, not committed - see .gitignore). Stored
+      # as the raw JSON text (not base64) in the GOOGLE_SERVICES_JSON secret - see the note
+      # carried over from sevarath's history on why base64 was dropped (Windows PowerShell
+      # mangled it; `gh secret set NAME --body-file google-services.json` sidesteps that).
+      - name: Set up Firebase config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      # Two installable apps from one codebase (android/app/build.gradle.kts's productFlavors) -
+      # build both so every release carries a rider and a driver APK.
+      - run: flutter build apk --release --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
+      - run: flutter build apk --release --flavor driver -t lib/main_driver.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
+
+      - name: Rename APKs
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-user-release.apk "dist/SevaRath-${{ steps.tag.outputs.tag_name }}.apk"
+          cp build/app/outputs/flutter-apk/app-driver-release.apk "dist/SevaRath-Driver-${{ steps.tag.outputs.tag_name }}.apk"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          files: |
+            dist/SevaRath-${{ steps.tag.outputs.tag_name }}.apk
+            dist/SevaRath-Driver-${{ steps.tag.outputs.tag_name }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

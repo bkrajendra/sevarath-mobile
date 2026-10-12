@@ -1,17 +1,22 @@
-# sevarath_mobile
+# SevaRath Mobile
 
-A new Flutter project.
+The SevaRath rider+driver Flutter app. Split out of [`bkrajendra/sevarath`](https://github.com/bkrajendra/sevarath) on 2026-10-12 - see that repo's [`docs/repo-split-plan.md`](https://github.com/bkrajendra/sevarath/blob/main/docs/repo-split-plan.md) for why and how.
+
+System-level docs (architecture, API contract, product plan) stay in the main repo: [`sevarath/docs`](https://github.com/bkrajendra/sevarath/tree/main/docs).
+
+## Releases
+
+Push a commit to `main` that bumps `version:` in `pubspec.yaml` - the `Tag Release` workflow creates the matching `vX.Y.Z` tag automatically, which triggers `Mobile APK Release` to build and publish signed rider+driver APKs to that tag's GitHub Release. `Mobile APK Release` can also be run manually (`workflow_dispatch`) to re-release an existing tag.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter analyze
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+A few resources if this is your first Flutter project:
 
 - [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
 - [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
