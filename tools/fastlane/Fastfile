@@ -1,0 +1,48 @@
+default_platform(:ios)
+
+platform :ios do
+  before_all do
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_CONTENT_BASE64"),
+      is_key_content_base64: true
+    )
+  end
+
+  desc "Local, read-write: create/fetch the App Store distribution cert + profiles for both bundle IDs"
+  lane :bootstrap do
+    match(type: "appstore", readonly: false)
+  end
+
+  desc "CI, read-only: fetch existing signing material, build both flavors, upload both to TestFlight"
+  lane :ci_release do
+    match(type: "appstore", readonly: true)
+
+    {
+      "user" => { bundle_id: "com.rajendrakhope.sevarath", target: "lib/main_user.dart", export_options: "ExportOptions-user.plist" },
+      "driver" => { bundle_id: "com.rajendrakhope.sevarath.driver", target: "lib/main_driver.dart", export_options: "ExportOptions-driver.plist" }
+    }.each do |flavor, cfg|
+      sh(
+        "flutter", "build", "ipa",
+        "--release",
+        "--flavor", flavor,
+        "-t", cfg[:target],
+        "--dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1",
+        "--export-options-plist=../ios/#{cfg[:export_options]}"
+      )
+
+      upload_to_testflight(
+        api_key: Spaceship::ConnectAPI.token,
+        app_identifier: cfg[:bundle_id],
+        ipa: Dir.glob("../build/ios/ipa/*.ipa").first,
+        skip_waiting_for_build_processing: true
+      )
+
+      # flutter build ipa always writes to the same build/ios/ipa/ directory, so
+      # it must be cleared between flavors or the second glob above would still
+      # match the first flavor's (already-uploaded) .ipa, not the new one.
+      FileUtils.rm_rf("../build/ios/ipa")
+    end
+  end
+end
