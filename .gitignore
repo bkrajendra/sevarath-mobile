@@ -58,3 +58,7 @@ app.*.map.json
 # Fastlane/match signing toolkit — never commit real secret material
 tools/.env.local
 tools/*.p8
+docs/secrets
+
+# Fastlane's own per-run report, not useful to keep in history
+tools/fastlane/report.xml
