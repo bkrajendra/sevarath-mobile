@@ -1,0 +1,4 @@
+# The file to edit if either bundle ID or the team ever changes.
+
+app_identifier(["com.rajendrakhope.sevarath", "com.rajendrakhope.sevarath.driver"])
+team_id("3KA57X722P")

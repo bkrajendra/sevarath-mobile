@@ -54,3 +54,7 @@ app.*.map.json
 
 # superpowers plan-execution scratch (ledgers, briefs, review packages)
 .superpowers/
+
+# Fastlane/match signing toolkit — never commit real secret material
+tools/.env.local
+tools/*.p8
