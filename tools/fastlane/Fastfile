@@ -50,14 +50,24 @@ platform :ios do
     }.each do |flavor, cfg|
       FileUtils.rm_rf(ipa_dir)
 
+      # Scoped to the Runner target only (and just this flavor's Release
+      # configuration) - a blanket FLUTTER_XCODE_* override applies to every
+      # target xcodebuild touches, including the Swift Package Manager
+      # library targets (AppAuth, GTMAppAuth, ...), which don't support
+      # provisioning profiles at all and fail the build if one is forced on
+      # them. update_code_signing_settings edits only the named target.
+      update_code_signing_settings(
+        path: File.join(REPO_ROOT, "ios", "Runner.xcodeproj"),
+        targets: ["Runner"],
+        build_configurations: ["Release-#{flavor}"],
+        use_automatic_signing: false,
+        team_id: "3KA57X722P",
+        code_sign_identity: "Apple Distribution",
+        profile_name: cfg[:profile_name]
+      )
+
       Dir.chdir(REPO_ROOT) do
         sh(
-          {
-            "FLUTTER_XCODE_CODE_SIGN_STYLE" => "Manual",
-            "FLUTTER_XCODE_DEVELOPMENT_TEAM" => "3KA57X722P",
-            "FLUTTER_XCODE_CODE_SIGN_IDENTITY" => "Apple Distribution",
-            "FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER" => cfg[:profile_name]
-          },
           "flutter", "build", "ipa",
           "--release",
           "--flavor", flavor,
