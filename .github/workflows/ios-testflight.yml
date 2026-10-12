@@ -15,15 +15,18 @@ concurrency:
 jobs:
   build-and-upload:
     runs-on: macos-15
+    timeout-minutes: 60
     env:
-      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_KEY_CONTENT_BASE64: ${{ secrets.ASC_KEY_CONTENT_BASE64 }}
       LANG: en_US.UTF-8
     steps:
       - uses: actions/checkout@v4
+
+      # The project was last saved by Xcode 27 (LastUpgradeCheck = 2700) -
+      # pin to the newest Xcode the runner offers so the archive step doesn't
+      # hit an SDK/project-format mismatch against an older default.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - uses: subosito/flutter-action@v2
         with:
@@ -36,13 +39,20 @@ jobs:
         with:
           ruby-version: '3.3'
 
-      # Plain `gem install`, not Bundler - see docs/mobile-plan.md's Task 10
-      # ledger entry for why (a local-only Bundler version mismatch on the
-      # dev Mac; doesn't apply here, but this keeps the two environments
-      # using the same install mechanism rather than two different ones).
+      # Plain `gem install`, not Bundler - this Mac's local `bundle`
+      # executable turned out to be a stale leftover from a previous
+      # Homebrew Ruby version (unrelated to this repo), and switching both
+      # environments to the same plain-gem install keeps local dev and CI
+      # using one mechanism instead of two.
       - name: Install fastlane
         run: gem install fastlane --no-document
 
       - name: Build both flavors and upload to TestFlight
         working-directory: tools
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT_BASE64: ${{ secrets.ASC_KEY_CONTENT_BASE64 }}
         run: fastlane ios ci_release

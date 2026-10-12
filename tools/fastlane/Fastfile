@@ -1,7 +1,15 @@
 default_platform(:ios)
 
+# Lane code runs with cwd = this file's own directory (tools/fastlane), not
+# tools/ and not the repo root - every path below is built from this
+# constant rather than a relative "../..." that would resolve against the
+# wrong directory.
+REPO_ROOT = File.expand_path("../..", __dir__)
+
 platform :ios do
   before_all do
+    setup_ci if ENV["CI"]
+
     app_store_connect_api_key(
       key_id: ENV.fetch("ASC_KEY_ID"),
       issuer_id: ENV.fetch("ASC_ISSUER_ID"),
@@ -19,30 +27,55 @@ platform :ios do
   lane :ci_release do
     match(type: "appstore", readonly: true)
 
+    ipa_dir = File.join(REPO_ROOT, "build", "ios", "ipa")
+    # A monotonically increasing build number per CI run. Falls back to a
+    # timestamp for a local/manual run where GITHUB_RUN_NUMBER isn't set -
+    # TestFlight only requires each app's own build numbers to increase, not
+    # that the two flavors' numbers relate to each other.
+    build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s
+
     {
-      "user" => { bundle_id: "com.rajendrakhope.sevarath", target: "lib/main_user.dart", export_options: "ExportOptions-user.plist" },
-      "driver" => { bundle_id: "com.rajendrakhope.sevarath.driver", target: "lib/main_driver.dart", export_options: "ExportOptions-driver.plist" }
+      "user" => {
+        bundle_id: "com.rajendrakhope.sevarath",
+        target: "lib/main_user.dart",
+        export_options: File.join(REPO_ROOT, "ios", "ExportOptions-user.plist"),
+        profile_name: "match AppStore com.rajendrakhope.sevarath"
+      },
+      "driver" => {
+        bundle_id: "com.rajendrakhope.sevarath.driver",
+        target: "lib/main_driver.dart",
+        export_options: File.join(REPO_ROOT, "ios", "ExportOptions-driver.plist"),
+        profile_name: "match AppStore com.rajendrakhope.sevarath.driver"
+      }
     }.each do |flavor, cfg|
-      sh(
-        "flutter", "build", "ipa",
-        "--release",
-        "--flavor", flavor,
-        "-t", cfg[:target],
-        "--dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1",
-        "--export-options-plist=../ios/#{cfg[:export_options]}"
-      )
+      FileUtils.rm_rf(ipa_dir)
+
+      Dir.chdir(REPO_ROOT) do
+        sh(
+          {
+            "FLUTTER_XCODE_CODE_SIGN_STYLE" => "Manual",
+            "FLUTTER_XCODE_DEVELOPMENT_TEAM" => "3KA57X722P",
+            "FLUTTER_XCODE_CODE_SIGN_IDENTITY" => "Apple Distribution",
+            "FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER" => cfg[:profile_name]
+          },
+          "flutter", "build", "ipa",
+          "--release",
+          "--flavor", flavor,
+          "-t", cfg[:target],
+          "--build-number", build_number,
+          "--dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1",
+          "--export-options-plist=#{cfg[:export_options]}"
+        )
+      end
+
+      ipa_path = Dir.glob(File.join(ipa_dir, "*.ipa")).first
+      UI.user_error!("No .ipa found in #{ipa_dir} after building the #{flavor} flavor") unless ipa_path
 
       upload_to_testflight(
-        api_key: Spaceship::ConnectAPI.token,
         app_identifier: cfg[:bundle_id],
-        ipa: Dir.glob("../build/ios/ipa/*.ipa").first,
+        ipa: ipa_path,
         skip_waiting_for_build_processing: true
       )
-
-      # flutter build ipa always writes to the same build/ios/ipa/ directory, so
-      # it must be cleared between flavors or the second glob above would still
-      # match the first flavor's (already-uploaded) .ipa, not the new one.
-      FileUtils.rm_rf("../build/ios/ipa")
     end
   end
 end
