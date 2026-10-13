@@ -115,16 +115,21 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
-      # Two installable apps from one codebase (android/app/build.gradle.kts's productFlavors) -
-      # build both so every release carries a rider and a driver APK.
-      - run: flutter build apk --release --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
-      - run: flutter build apk --release --flavor driver -t lib/main_driver.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
 
-      - name: Rename APKs
-        run: |
-          mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-user-release.apk "dist/SevaRath-${{ needs.tag.outputs.tag_name }}.apk"
-          cp build/app/outputs/flutter-apk/app-driver-release.apk "dist/SevaRath-Driver-${{ needs.tag.outputs.tag_name }}.apk"
+      - name: Install fastlane
+        run: gem install fastlane --no-document
+
+      # Two installable apps from one codebase (android/app/build.gradle.kts's productFlavors) -
+      # the lane builds both so every release carries a rider and a driver APK, and copies them
+      # into dist/ already renamed for the GitHub Release below.
+      - name: Build both flavors via Fastlane
+        working-directory: tools
+        env:
+          TAG_NAME: ${{ needs.tag.outputs.tag_name }}
+        run: fastlane android build_apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
