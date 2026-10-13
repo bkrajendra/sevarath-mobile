@@ -42,7 +42,7 @@
 
 **Interfaces:** Consumes the `REVERSED_CLIENT_ID` values already present in `ios/Runner/GoogleService-Info.plist` (rider) and `ios/Runner/GoogleService-Info-driver.plist` (driver) — both committed, non-secret (Firebase API keys are not security-sensitive). No code interface; this is pure Xcode/Info.plist config.
 
-- [ ] **Step 1: Read the two REVERSED_CLIENT_ID values**
+- [x] **Step 1: Read the two REVERSED_CLIENT_ID values**
 
 ```bash
 plutil -p ios/Runner/GoogleService-Info.plist | grep REVERSED_CLIENT_ID
@@ -53,7 +53,7 @@ Expected output (already confirmed this session, reproduced here so the values t
 - rider: `com.googleusercontent.apps.1010698548403-adhek2kaiqetvhj5vmeelsnpsnmieqdf`
 - driver: `com.googleusercontent.apps.1010698548403-gdnf4rg14h1djemqsch0n2mh496ivihb`
 
-- [ ] **Step 2: Add the `GOOGLE_REVERSED_CLIENT_ID` build setting per flavor**
+- [x] **Step 2: Add the `GOOGLE_REVERSED_CLIENT_ID` build setting per flavor**
 
 Using the `xcodeproj` Ruby gem (already a transitive CocoaPods dependency, confirmed working this session — see `docs/mobile-plan.md`'s Task 4 ledger for why this is preferred over hand-editing `project.pbxproj` text):
 
@@ -80,7 +80,7 @@ end
 project.save
 ```
 
-- [ ] **Step 3: Verify the setting landed on all 6 flavored configs**
+- [x] **Step 3: Verify the setting landed on all 6 flavored configs**
 
 ```bash
 grep -c "GOOGLE_REVERSED_CLIENT_ID" ios/Runner.xcodeproj/project.pbxproj
@@ -88,7 +88,7 @@ grep -c "GOOGLE_REVERSED_CLIENT_ID" ios/Runner.xcodeproj/project.pbxproj
 
 Expected: `6` (Debug/Release/Profile × user/driver — the un-flavored `Debug`/`Release`/`Profile` configs are skipped on purpose, same as `APP_DISPLAY_NAME`).
 
-- [ ] **Step 4: Add the URL scheme to `Info.plist`**
+- [x] **Step 4: Add the URL scheme to `Info.plist`**
 
 Add this block to `ios/Runner/Info.plist`, as a sibling of the existing top-level keys (e.g. right after `CFBundleIdentifier`):
 
@@ -106,7 +106,7 @@ Add this block to `ios/Runner/Info.plist`, as a sibling of the existing top-leve
 	</array>
 ```
 
-- [ ] **Step 5: Verify the substitution resolves per flavor**
+- [x] **Step 5: Verify the substitution resolves per flavor**
 
 ```bash
 flutter build ios --flavor user -t lib/main_user.dart --no-codesign
@@ -118,7 +118,7 @@ plutil -p build/ios/iphoneos/Runner.app/Info.plist | grep -A2 CFBundleURLSchemes
 # expect: com.googleusercontent.apps.1010698548403-gdnf4rg14h1djemqsch0n2mh496ivihb
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ios/Runner.xcodeproj/project.pbxproj ios/Runner/Info.plist
@@ -131,17 +131,17 @@ git commit -m "Register each flavor's Google Sign-In URL scheme on iOS"
 
 **Owner: You** (needs a real Google account interacting with a real OAuth flow — not something to script)
 
-- [ ] **Step 1:** Run the rider flavor on a simulator or your iPad:
+- [x] **Step 1:** Run the rider flavor on a simulator or your iPad:
 
 ```bash
 flutter run --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1 -d <device-id>
 ```
 
-- [ ] **Step 2:** On the login screen, tap **Continue with Google**. Expected: a native Google sign-in sheet appears (not a Safari "cannot open page" error — that specific failure means Task 1's URL scheme didn't take effect, check Step 5's verification again).
-- [ ] **Step 3:** Complete sign-in with a real Google account. Two outcomes are both correct, matching the design in `sevarath`'s `docs/plan.md` §5.5:
+- [x] **Step 2:** On the login screen, tap **Continue with Google**. Expected: a native Google sign-in sheet appears (not a Safari "cannot open page" error — that specific failure means Task 1's URL scheme didn't take effect, check Step 5's verification again).
+- [x] **Step 3:** Complete sign-in with a real Google account. Two outcomes are both correct, matching the design in `sevarath`'s `docs/plan.md` §5.5:
   - An account already linked by mobile/email logs straight in.
   - A brand-new Google identity is prompted for a mandatory mobile number (`CompleteProfileScreen`) before any account is created.
-- [ ] **Step 4:** Confirm the **driver** flavor's login screen still has **no** "Continue with Google" button (unchanged, rider-only gating) — this isn't a new check, just confirming Task 1 didn't accidentally affect it.
+- [x] **Step 4:** Confirm the **driver** flavor's login screen still has **no** "Continue with Google" button (unchanged, rider-only gating) — this isn't a new check, just confirming Task 1 didn't accidentally affect it.
 
 ---
 
@@ -159,7 +159,7 @@ flutter run --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https
 
 **Interfaces:** Produces the two `.entitlements` files Task 6's `match` regeneration needs to match against (the App ID capability from Task 4, not the entitlements file itself, is what `match` actually checks — but Xcode's own build will fail to compile without `CODE_SIGN_ENTITLEMENTS` pointing at a file that declares `aps-environment` once the capability exists on the target).
 
-- [ ] **Step 1: Create both entitlements files**
+- [x] **Step 1: Create both entitlements files**
 
 `ios/Runner/user.entitlements`:
 ```xml
@@ -175,7 +175,7 @@ flutter run --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https
 
 `ios/Runner/driver.entitlements`: identical content (the entitlement itself doesn't encode the bundle ID — only which provisioning profile gets used to sign does that).
 
-- [ ] **Step 2: Wire `CODE_SIGN_ENTITLEMENTS` and `UIBackgroundModes` via the `xcodeproj` gem**
+- [x] **Step 2: Wire `CODE_SIGN_ENTITLEMENTS` and `UIBackgroundModes` via the `xcodeproj` gem**
 
 ```ruby
 require 'xcodeproj'
@@ -200,7 +200,7 @@ end
 project.save
 ```
 
-- [ ] **Step 3: Add `UIBackgroundModes` to `Info.plist`**
+- [x] **Step 3: Add `UIBackgroundModes` to `Info.plist`**
 
 ```xml
 	<key>UIBackgroundModes</key>
@@ -209,7 +209,7 @@ project.save
 	</array>
 ```
 
-- [ ] **Step 4: Verify both flavors still build** (will **not** yet deliver push — the App ID doesn't have the capability enabled until Task 4, so this only proves the project compiles with the new entitlements wiring)
+- [x] **Step 4: Verify both flavors still build** (will **not** yet deliver push — the App ID doesn't have the capability enabled until Task 4, so this only proves the project compiles with the new entitlements wiring)
 
 ```bash
 flutter build ios --flavor user -t lib/main_user.dart --no-codesign
@@ -218,7 +218,7 @@ flutter build ios --flavor driver -t lib/main_driver.dart --no-codesign
 
 Expected: both succeed. If either fails with a code-signing/entitlements error even with `--no-codesign`, check the entitlements file path in Step 2 is exactly `Runner/user.entitlements` (relative to the `ios/` directory, matching how `INFOPLIST_FILE` is already referenced in the same build settings).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ios/Runner/user.entitlements ios/Runner/driver.entitlements ios/Runner.xcodeproj/project.pbxproj ios/Runner/Info.plist
@@ -231,8 +231,8 @@ git commit -m "Add Push Notifications entitlements and Background Modes per iOS 
 
 **Owner: You** (developer.apple.com)
 
-- [ ] **Step 1:** [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Identifiers → `com.rajendrakhope.sevarath` → check **Push Notifications** under Capabilities → Save.
-- [ ] **Step 2:** Repeat for `com.rajendrakhope.sevarath.driver`.
+- [x] **Step 1:** [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Identifiers → `com.rajendrakhope.sevarath` → check **Push Notifications** under Capabilities → Save.
+- [x] **Step 2:** Repeat for `com.rajendrakhope.sevarath.driver`.
 
 ---
 
@@ -240,9 +240,9 @@ git commit -m "Add Push Notifications entitlements and Background Modes per iOS 
 
 **Owner: You** — this is the one genuinely new Apple/Firebase artifact this plan needs; everything else reuses what already exists.
 
-- [ ] **Step 1:** [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Keys → **+** → name it e.g. `sevarath-apns` → check **Apple Push Notifications service (APNs)** → Continue → Register → **Download** (one-time only, same rule as the App Store Connect API key — save it outside any git repo). Note the **Key ID** shown.
-- [ ] **Step 2:** [Firebase console](https://console.firebase.google.com) → project `bksevarath` → ⚙️ Project Settings → **Cloud Messaging** tab → under **Apple app configuration**, for the rider app entry (`com.rajendrakhope.sevarath`) → **APNs Authentication Key** → **Upload** → select the `.p8` from Step 1, enter its Key ID and your Team ID (`3KA57X722P`).
-- [ ] **Step 3:** Repeat Step 2 for the driver app entry (`com.rajendrakhope.sevarath.driver`) — the same key file/Key ID is reused (APNs keys are account-wide, not per-app), Firebase just needs it registered against each app entry separately.
+- [x] **Step 1:** [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Keys → **+** → name it e.g. `sevarath-apns` → check **Apple Push Notifications service (APNs)** → Continue → Register → **Download** (one-time only, same rule as the App Store Connect API key — save it outside any git repo). Note the **Key ID** shown.
+- [x] **Step 2:** [Firebase console](https://console.firebase.google.com) → project `bksevarath` → ⚙️ Project Settings → **Cloud Messaging** tab → under **Apple app configuration**, for the rider app entry (`com.rajendrakhope.sevarath`) → **APNs Authentication Key** → **Upload** → select the `.p8` from Step 1, enter its Key ID and your Team ID (`3KA57X722P`).
+- [x] **Step 3:** Repeat Step 2 for the driver app entry (`com.rajendrakhope.sevarath.driver`) — the same key file/Key ID is reused (APNs keys are account-wide, not per-app), Firebase just needs it registered against each app entry separately.
 
 This key is the **entire** Firebase/Apple-side requirement — per `sevarath`'s `open-items.md` #34, the NestJS backend calls a single `admin.messaging().send()` for both platforms with no APNs-specific code of its own; FCM relays to APNs using this key.
 
@@ -252,7 +252,7 @@ This key is the **entire** Firebase/Apple-side requirement — per `sevarath`'s 
 
 **Owner: You** — this is the scenario `docs/mobile-plan.md`'s Review Focus flagged in advance: the App ID now has a capability (Task 4) that the profile `match` fetched before that didn't.
 
-- [ ] **Step 1:**
+- [x] **Step 1:**
 
 ```bash
 cd tools
@@ -277,7 +277,7 @@ Expected: `match` detects the App Store profiles for both bundle IDs no longer m
 
 **Interfaces:** No change to `PushNotificationService`'s public surface (`initialize()`, `registerDeviceToken()`, `unregisterDeviceToken()` keep their existing signatures — `main_user.dart`/`main_driver.dart`/`auth_provider.dart` call these unchanged).
 
-- [ ] **Step 1: Update the stale doc comment**
+- [x] **Step 1: Update the stale doc comment**
 
 Current (`push_notification_service.dart:10-13`):
 ```dart
@@ -295,7 +295,7 @@ Replace with:
 /// push-recipients.ts) needs no platform-specific code of its own; FCM relays to APNs for iOS.
 ```
 
-- [ ] **Step 2: Add the Darwin (iOS) initialization settings**
+- [x] **Step 2: Add the Darwin (iOS) initialization settings**
 
 Current (`push_notification_service.dart:51-57`):
 ```dart
@@ -329,7 +329,7 @@ Replace with:
     );
 ```
 
-- [ ] **Step 3: Tell iOS to present foreground pushes natively, right after the existing permission request**
+- [x] **Step 3: Tell iOS to present foreground pushes natively, right after the existing permission request**
 
 Current (`push_notification_service.dart:60-61`):
 ```dart
@@ -354,7 +354,7 @@ Replace with:
     );
 ```
 
-- [ ] **Step 4: Stop double-showing foreground notifications on iOS**
+- [x] **Step 4: Stop double-showing foreground notifications on iOS**
 
 Current (`push_notification_service.dart:94-105`):
 ```dart
@@ -399,7 +399,7 @@ Replace with:
 
 Add the needed import at the top of the file (`defaultTargetPlatform` lives in Flutter's foundation library, already indirectly available via the `flutter/foundation.dart` that `debugPrint` comes from — check the existing `import 'package:flutter/foundation.dart';` line is already there before adding a duplicate).
 
-- [ ] **Step 5: Verify — simulator first (both flavors, confirms the crash is gone)**
+- [x] **Step 5: Verify — simulator first (both flavors, confirms the crash is gone)**
 
 ```bash
 flutter run --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1 -d <simulator-id>
@@ -407,7 +407,7 @@ flutter run --flavor user -t lib/main_user.dart --dart-define=API_BASE_URL=https
 
 Expected: no `[ERROR:flutter/runtime/dart_vm_initializer.cc] Unhandled Exception: Invalid argument(s): iOS settings must be set when targeting iOS platform` in the console — this exact line is what `docs/mobile-plan.md`'s Task 5 observed and deferred; its absence here is the fix confirmed. Repeat for the driver flavor.
 
-- [ ] **Step 6: `flutter analyze` and `flutter test`**
+- [x] **Step 6: `flutter analyze` and `flutter test`**
 
 ```bash
 flutter analyze
@@ -416,7 +416,7 @@ flutter test
 
 Expected: no new issues, 25/25 tests passing (unchanged — this task touches no tested logic, only platform-glue wiring).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/features/notifications/push_notification_service.dart
@@ -429,8 +429,8 @@ git commit -m "Fix iOS crash in flutter_local_notifications init, avoid double f
 
 **Owner: You** — the one check nothing in this plan can substitute for. Per `sevarath`'s `open-items.md` #36, **no push notification has ever been verified against a real device from the backend side either** — this is genuinely the first real-device confirmation for the whole pipeline, not just the iOS half.
 
-- [ ] **Step 1:** Run the rider flavor on your real iPad (not the simulator — APNs doesn't deliver to simulators prior to iOS 16's limited simulator-push support, and this plan isn't relying on that), log in, confirm the push-permission system prompt appears once (not twice — confirms Task 7 Step 2/3's double-prompt fix).
-- [ ] **Step 2:** Background the app (don't force-quit yet). From the [Firebase console](https://console.firebase.google.com) → project `bksevarath` → Engage → Messaging → **New campaign** → Notifications → send a test message targeting this device's FCM token (Settings → "Send test message" lets you paste a token directly — get it by temporarily adding a `debugPrint('FCM token: $token')` in `registerDeviceToken()`, or read it from Xcode's device console). Confirm a system notification banner appears.
-- [ ] **Step 3:** Tap the notification. Confirm the app opens to Home (the generic rider-facing path, since a Firebase-console test message won't carry the `eventType`/`rideId` data payload a real ride event would).
-- [ ] **Step 4:** The more meaningful test: trigger a **real** ride-lifecycle push by actually booking a ride end-to-end (rider requests, a driver on the driver-flavor app accepts) and confirming the rider receives the "driver assigned" push while backgrounded, and the driver receives the ride-offer push (`RideDriverNotified`) while backgrounded too — tap it and confirm it deep-links to `IncomingOfferScreen`, not just Home.
-- [ ] **Step 5:** Foreground test — with the app open, trigger another real ride event and confirm exactly **one** notification banner appears (not two — Task 7 Step 4's fix).
+- [x] **Step 1:** Run the rider flavor on your real iPad (not the simulator — APNs doesn't deliver to simulators prior to iOS 16's limited simulator-push support, and this plan isn't relying on that), log in, confirm the push-permission system prompt appears once (not twice — confirms Task 7 Step 2/3's double-prompt fix).
+- [x] **Step 2:** Background the app (don't force-quit yet). From the [Firebase console](https://console.firebase.google.com) → project `bksevarath` → Engage → Messaging → **New campaign** → Notifications → send a test message targeting this device's FCM token (Settings → "Send test message" lets you paste a token directly — get it by temporarily adding a `debugPrint('FCM token: $token')` in `registerDeviceToken()`, or read it from Xcode's device console). Confirm a system notification banner appears.
+- [x] **Step 3:** Tap the notification. Confirm the app opens to Home (the generic rider-facing path, since a Firebase-console test message won't carry the `eventType`/`rideId` data payload a real ride event would).
+- [x] **Step 4:** The more meaningful test: trigger a **real** ride-lifecycle push by actually booking a ride end-to-end (rider requests, a driver on the driver-flavor app accepts) and confirming the rider receives the "driver assigned" push while backgrounded, and the driver receives the ride-offer push (`RideDriverNotified`) while backgrounded too — tap it and confirm it deep-links to `IncomingOfferScreen`, not just Home.
+- [x] **Step 5:** Foreground test — with the app open, trigger another real ride event and confirm exactly **one** notification banner appears (not two — Task 7 Step 4's fix).
