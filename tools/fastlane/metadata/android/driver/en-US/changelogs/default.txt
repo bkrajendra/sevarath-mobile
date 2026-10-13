@@ -1,0 +1,1 @@
+First public release of SevaRath Driver: go online, accept rides, navigate turn-by-turn, and complete trips.

@@ -1,0 +1,16 @@
+SevaRath is the official ride-booking app for getting around the Shantivan
+(Abu Road) campus by electric vehicle.
+
+With SevaRath you can:
+• Request an EV ride from your current location or a known campus location
+• See your pickup point and destination on a live campus map
+• Get matched automatically with the nearest available SevaRath EV and driver
+• Track your driver's live location as they arrive and during the ride
+• View your past rides in a simple ride history
+
+SevaRath is built for the Shantivan (Abu Road) campus community. There is no
+fare, payment, surge pricing, or wallet in the app — rides are provided as
+part of the campus's own EV transport service, and a SevaRath account is
+required to sign in.
+
+Sign in with Google to get started.

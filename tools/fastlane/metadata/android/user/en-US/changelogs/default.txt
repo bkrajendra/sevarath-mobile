@@ -1,0 +1,1 @@
+First public release of SevaRath: request a campus EV ride, track your driver live, and view your ride history.
