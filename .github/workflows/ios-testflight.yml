@@ -3,6 +3,14 @@ name: iOS TestFlight
 on:
   push:
     branches: [main]
+    paths:
+      - 'lib/**'
+      - 'ios/**'
+      - 'tools/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios-testflight.yml'
   workflow_dispatch: {}
 
 permissions:
