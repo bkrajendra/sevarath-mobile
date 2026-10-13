@@ -8,10 +8,10 @@ import '../../core/router/app_router.dart';
 import '../../core/router/driver_router.dart';
 import 'data/notifications_repository.dart';
 
-/// Android-only receive + deep-link half of Phase 7's push pipeline (Phase 10.2, docs/plan.md
-/// §5) - the backend send side (including the driver ride-offer push, `RideDriverNotified` ->
-/// `offeredDriver` in push-recipients.ts) was already fully built; nothing in `apps/mobile`
-/// called any of it until now. iOS is out of scope - no iOS flavor split exists yet.
+/// Receive + deep-link half of Phase 7's push pipeline (Phase 10.2, docs/plan.md §5), now
+/// covering both Android and iOS (docs/ios-push-and-google-signin-plan.md) - the backend send
+/// side (including the driver ride-offer push, `RideDriverNotified` -> `offeredDriver` in
+/// push-recipients.ts) needs no platform-specific code of its own; FCM relays to APNs for iOS.
 ///
 /// Must run as a top-level/static function, not a method - FCM invokes this in a separate
 /// background isolate with no access to any app state, so it re-initializes Firebase itself.
@@ -51,7 +51,17 @@ class PushNotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     await _localNotifications.initialize(
-      settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        // Permission is requested once, below, via FirebaseMessaging.instance.requestPermission()
+        // - both plugins share the same underlying UNUserNotificationCenter authorization on
+        // iOS, so requesting it here too would show a second, redundant system prompt.
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
       onDidReceiveNotificationResponse: (response) {
         final rideId = response.payload;
         if (rideId != null) _navigate(eventType: null, rideId: rideId);
@@ -61,8 +71,19 @@ class PushNotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_rideUpdatesChannel);
 
-    // Also requests the Android 13+ POST_NOTIFICATIONS runtime permission.
+    // Also requests the Android 13+ POST_NOTIFICATIONS runtime permission, and on iOS is what
+    // actually triggers the system permission prompt (DarwinInitializationSettings above
+    // deliberately doesn't, to avoid asking twice).
     await FirebaseMessaging.instance.requestPermission();
+
+    // iOS-only: without this, a push received while the app is foregrounded is delivered
+    // silently (no banner) - Android doesn't need the equivalent because _showForegroundNotification
+    // below handles that case manually there instead.
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
@@ -95,6 +116,11 @@ class PushNotificationService {
   }
 
   void _showForegroundNotification(RemoteMessage message) {
+    // iOS already shows this via setForegroundNotificationPresentationOptions (set in
+    // initialize()) - calling _localNotifications.show() here too would duplicate it. Only
+    // Android needs the manual path, which is why this whole method exists in the first place.
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+
     final notification = message.notification;
     if (notification == null) return;
     // firebase_messaging alone doesn't surface a system notification while the app is
