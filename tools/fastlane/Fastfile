@@ -88,4 +88,134 @@ platform :ios do
       )
     end
   end
+
+  desc "Create the two App Store Connect app records (idempotent - safe to re-run)"
+  lane :create_app_records do
+    {
+      "com.rajendrakhope.sevarath" => "SevaRath",
+      "com.rajendrakhope.sevarath.driver" => "SevaRath Driver"
+    }.each do |bundle_id, app_name|
+      produce(
+        app_identifier: bundle_id,
+        app_name: app_name,
+        language: "English (U.S.)",
+        app_version: "1.0",
+        sku: bundle_id,
+        team_id: "3KA57X722P"
+      )
+    end
+  end
+
+  desc "Local/manual: push App Store listing text for both apps from tools/fastlane/metadata/ios - no binary, no submission"
+  lane :upload_metadata do
+    {
+      "user" => "com.rajendrakhope.sevarath",
+      "driver" => "com.rajendrakhope.sevarath.driver"
+    }.each do |flavor, bundle_id|
+      deliver(
+        app_identifier: bundle_id,
+        metadata_path: File.join(REPO_ROOT, "tools", "fastlane", "metadata", "ios", flavor),
+        skip_binary_upload: true,
+        skip_screenshots: true,
+        skip_metadata: false,
+        force: true,
+        submit_for_review: false,
+        automatic_release: false
+      )
+    end
+  end
+end
+
+platform :android do
+  desc "CI: build both flavors' signed release APKs into dist/, named for a GitHub Release"
+  lane :build_apk do |options|
+    tag_name = options[:tag_name] || ENV.fetch("TAG_NAME")
+    dist_dir = File.join(REPO_ROOT, "dist")
+    FileUtils.mkdir_p(dist_dir)
+
+    {
+      "user" => {
+        target: "lib/main_user.dart",
+        built_name: "app-user-release.apk",
+        dest_name: "SevaRath-#{tag_name}.apk"
+      },
+      "driver" => {
+        target: "lib/main_driver.dart",
+        built_name: "app-driver-release.apk",
+        dest_name: "SevaRath-Driver-#{tag_name}.apk"
+      }
+    }.each do |flavor, cfg|
+      Dir.chdir(REPO_ROOT) do
+        sh(
+          "flutter", "build", "apk",
+          "--release",
+          "--flavor", flavor,
+          "-t", cfg[:target],
+          "--dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1"
+        )
+      end
+
+      FileUtils.cp(
+        File.join(REPO_ROOT, "build", "app", "outputs", "flutter-apk", cfg[:built_name]),
+        File.join(dist_dir, cfg[:dest_name])
+      )
+    end
+  end
+
+  desc "CI, upload: build both flavors' signed AABs and push to Google Play (binary + version bump only - no metadata/images, see upload_play_metadata)"
+  lane :release_playstore do |options|
+    track = options[:track] || ENV["PLAY_TRACK"] || "internal"
+    # Same reasoning as iOS's ci_release: Play rejects a reused versionCode on the
+    # second upload for a package, and pubspec.yaml's version is static.
+    build_number = ENV["GITHUB_RUN_NUMBER"] || Time.now.to_i.to_s
+
+    {
+      "user" => { package_name: "com.rajendrakhope.sevarath", target: "lib/main_user.dart" },
+      "driver" => { package_name: "com.rajendrakhope.sevarath.driver", target: "lib/main_driver.dart" }
+    }.each do |flavor, cfg|
+      Dir.chdir(REPO_ROOT) do
+        sh(
+          "flutter", "build", "appbundle",
+          "--release",
+          "--flavor", flavor,
+          "-t", cfg[:target],
+          "--build-number", build_number,
+          "--dart-define=API_BASE_URL=https://sevarath.rajendrakhope.com/api/v1"
+        )
+      end
+
+      aab_path = Dir.glob(
+        File.join(REPO_ROOT, "build", "app", "outputs", "bundle", "#{flavor}Release", "*.aab")
+      ).first
+      UI.user_error!("No .aab found for the #{flavor} flavor") unless aab_path
+
+      upload_to_play_store(
+        package_name: cfg[:package_name],
+        aab: aab_path,
+        track: track,
+        json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY"),
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    end
+  end
+
+  desc "Local/manual: push Android store-listing text for both apps from tools/fastlane/metadata/android - no binary, no version bump"
+  lane :upload_play_metadata do
+    {
+      "user" => "com.rajendrakhope.sevarath",
+      "driver" => "com.rajendrakhope.sevarath.driver"
+    }.each do |flavor, package_name|
+      upload_to_play_store(
+        package_name: package_name,
+        json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY"),
+        metadata_path: File.join(REPO_ROOT, "tools", "fastlane", "metadata", "android", flavor),
+        skip_upload_apk: true,
+        skip_upload_aab: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true
+      )
+    end
+  end
 end
