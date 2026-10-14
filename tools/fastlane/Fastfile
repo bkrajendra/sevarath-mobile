@@ -89,22 +89,15 @@ platform :ios do
     end
   end
 
-  desc "Create the two App Store Connect app records (idempotent - safe to re-run)"
-  lane :create_app_records do
-    {
-      "com.rajendrakhope.sevarath" => "SevaRath",
-      "com.rajendrakhope.sevarath.driver" => "SevaRath Driver"
-    }.each do |bundle_id, app_name|
-      produce(
-        app_identifier: bundle_id,
-        app_name: app_name,
-        language: "English (U.S.)",
-        app_version: "1.0",
-        sku: bundle_id,
-        team_id: "3KA57X722P"
-      )
-    end
-  end
+  # No create_app_records lane: produce's ItunesConnect#run (used for App Store Connect app
+  # creation, as opposed to the Developer Portal bundle ID registration already done for
+  # TestFlight) calls Spaceship::ConnectAPI.login(username, nil, ...) directly, bypassing the
+  # same module's own API-key-aware authenticate_connect_api! helper - confirmed by reading
+  # fastlane 2.241.0's produce/lib/produce/itunes_connect.rb. With no username configured
+  # (nil) this attempts an interactive Apple ID login regardless of the ASC API key already
+  # set up in before_all, which would hang or fail in CI. Both app records already exist
+  # anyway - upload_to_testflight in ci_release has been succeeding, which requires them - so
+  # this lane would have had nothing to do even if it could run safely.
 
   desc "Local/manual: push App Store listing text for both apps from tools/fastlane/metadata/ios - no binary, no submission"
   lane :upload_metadata do
@@ -196,7 +189,14 @@ platform :android do
         json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY"),
         skip_upload_metadata: true,
         skip_upload_images: true,
-        skip_upload_screenshots: true
+        skip_upload_screenshots: true,
+        # Without this, supply's own metadata_path default - Dir["./fastlane/metadata/android"]
+        # + Dir["./metadata"], resolved against this lane's real cwd (tools/fastlane, not
+        # tools/ - verified empirically, not assumed) - falls through to "./metadata", i.e.
+        # tools/fastlane/metadata/, and treats its "android"/"ios" subdirectories as language
+        # codes, aborting the whole upload. This lane never touches changelogs anyway (that's
+        # upload_play_metadata's job), so skip it outright rather than pass a metadata_path here.
+        skip_upload_changelogs: true
       )
     end
   end
@@ -209,6 +209,11 @@ platform :android do
     }.each do |flavor, package_name|
       upload_to_play_store(
         package_name: package_name,
+        # supply's own default track is "production" - this app's first-ever release (Task B3)
+        # goes to "internal" instead, which would never have a matching release to attach this
+        # metadata push to otherwise ("Could not find release for version code ... to update
+        # changelog"). Match whatever track the binary actually lives on.
+        track: ENV["PLAY_TRACK"] || "internal",
         json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY"),
         metadata_path: File.join(REPO_ROOT, "tools", "fastlane", "metadata", "android", flavor),
         skip_upload_apk: true,

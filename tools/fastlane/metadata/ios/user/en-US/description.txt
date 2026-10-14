@@ -9,4 +9,4 @@ With SevaRath you can:
 
 SevaRath is built for the Shantivan (Abu Road) campus community. There is no fare, payment, surge pricing, or wallet in the app — rides are provided as part of the campus's own EV transport service, and a SevaRath account is required to sign in.
 
-Sign in with Google to get started.
+Sign in with your mobile number or Google account to get started.

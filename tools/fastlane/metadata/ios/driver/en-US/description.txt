@@ -5,8 +5,5 @@ With SevaRath Driver you can:
 • Receive and accept or reject nearby ride requests
 • Get turn-by-turn visual and voice navigation to pickup and destination
 • Mark a ride as arrived, started, and completed as you drive it
-• See your own ride history
 
-SevaRath Driver is built for the Shantivan (Abu Road) campus community. There is no fare, payment, or wallet feature — it is part of the campus's own EV transport service, and a SevaRath driver account is required to sign in.
-
-Sign in with Google to get started.
+SevaRath Driver is built for the Shantivan (Abu Road) campus community. There is no fare, payment, or wallet feature — it is part of the campus's own EV transport service. Driver accounts are set up by a campus administrator; sign in with the mobile number and password they give you.

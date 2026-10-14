@@ -1,4 +1,7 @@
 # Miscellaneous
+# Local output of `fastlane android build_apk` (dist/*.apk) - CI's own copy never gets
+# committed either, it's uploaded straight to the GitHub Release as an artifact.
+dist/
 *.class
 *.log
 *.pyc

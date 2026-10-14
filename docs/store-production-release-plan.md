@@ -27,7 +27,7 @@
 1. **Reviewer's device isn't on campus.** `lib/core/config/campus_config.dart` enforces a hard ~2000m service radius around `LatLng(24.5313075, 72.7947805)` (Diamond Hall Shanti Van, Abu Road) — a real device at Apple's or Google's review facility is thousands of kilometers outside it and will hit "You're too far from campus" the moment it tries to book, with no way to see the app's actual core feature. Task C5 gives both stores' reviewers exact coordinates and spoofing instructions in the official review-notes field — without it, rejection at first login/booking attempt is near-certain.
 2. **Play Store's very first release of a brand-new package name cannot be created via the API at all.** `upload_to_play_store` (`supply`) fails outright against an app that has zero manually-uploaded releases — this is a hard Google Play restriction, not a bug in this plan's lane. Task B3 is the one-time **Owner: You** manual upload, once per package name (two apps), that the CI lane in Task B4 depends on forever after.
 3. **A static build number silently gets rejected on the second push.** Both Play Store (`versionCode`) and TestFlight (already fixed for iOS in `tools/fastlane/Fastfile`) require each package's build number to strictly increase across uploads — `pubspec.yaml`'s unchanging `0.0.1+1` would make the *second* `release_playstore` CI run fail with "version code already used," exactly the class of bug the iOS lane's own comments call out as already fixed there. Task B1's Android lane needs the same `GITHUB_RUN_NUMBER`-based `--build-number` override.
-4. **Login-gated app, no public content to show without an account.** Both `com.rajendrakhope.sevarath` and `com.rajendrakhope.sevarath.driver` require Firebase Auth/Google Sign-In before anything else renders. A reviewer with no credentials rejects at the login screen having seen nothing. Task C5 also covers providing one working demo account per app.
+4. **Login-gated app, no public content to show without an account.** Both `com.rajendrakhope.sevarath` and `com.rajendrakhope.sevarath.driver` require signing in before anything else renders — mobile/email + password for both, with Google Sign-In as an additional option for the rider app only (not the driver app — confirmed against `lib/features/auth/login_screen.dart`'s `FlavorConfig.isDriver` gate). A reviewer with no credentials rejects at the login screen having seen nothing. Task C5 also covers providing one working demo account per app.
 5. **Declared data types must trace to real code, not boilerplate.** Play's Data Safety form and Apple's App Privacy "nutrition label" are both subject to takedown for a declaration that doesn't match the binary's actual behavior. This plan's answers in Task C4 are derived from the actual permissions/dependencies found in this codebase — `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` + `geolocator` (location), `firebase_auth`/`google_sign_in` (name, email), `firebase_messaging` (device token for push) — and deliberately say "no" to analytics, ads, and tracking, because no such SDK exists in `pubspec.yaml`.
 
 ---
@@ -289,9 +289,11 @@ gh secret set PLAY_STORE_JSON_KEY --repo bkrajendra/sevarath-mobile < /path/to/t
 ```bash
 cd tools/fastlane
 export PLAY_STORE_JSON_KEY="$(cat ../../docs/secrets/<your-play-service-account-key>.json)"
-fastlane android release_playstore track:internal
+GITHUB_RUN_NUMBER=1 fastlane android release_playstore track:internal
 ```
 This will fail at the `upload_to_play_store` step the very first time (expected — the API still can't push to an app with zero releases) but will have produced `build/app/outputs/bundle/{user,driver}Release/*.aab` locally. Upload that file manually in the Play Console release-creation screen instead.
+
+**Build-number warning (found in this plan's own review, not before):** `release_playstore`'s build number falls back to a Unix timestamp (~1.79 billion) when `GITHUB_RUN_NUMBER` isn't set — if this manual upload used that fallback instead of the explicit override above, it would plant a versionCode CI's own small, incrementing `GITHUB_RUN_NUMBER` (1, 2, 3, …) could never exceed, permanently blocking every future CI release for that package with "version code already used" (lower, not higher, since Play requires each new upload's versionCode to exceed the last). The explicit `GITHUB_RUN_NUMBER=1` above sidesteps this — verified immediately before writing this: `.github/workflows/android-playstore.yml` has run exactly once so far (number 1, the expected-failure run that proved the lane's AAB build), so the next real CI run will be number 2 or higher, safely above this manual upload's `1`. If Task B3 happens much later after more workflow runs have accumulated, re-check with `gh run list --repo bkrajendra/sevarath-mobile --workflow=android-playstore.yml` first and pick a number below the lowest one you'd expect CI to use next, not blindly reuse `1`.
 - [ ] **Step 4:** When prompted, opt into **Play App Signing** (the default/recommended option) — Google re-signs with its own app signing key on top of the existing upload-key keystore; nothing about this repo's existing signing setup changes.
 - [ ] **Step 5:** Submit the internal-testing release. Once Google finishes processing it (usually minutes, no review needed for internal testing), **every subsequent release for this package name can go through `fastlane android release_playstore` from CI (Task B4) with no further manual uploads.**
 - [ ] **Step 6:** Repeat Steps 1–5 for the other package name.
@@ -815,66 +817,80 @@ git commit -m "Add iOS App Store Connect app-record creation and listing metadat
 
 ### Task C4: Data Safety / App Privacy / content-rating answer sheets
 
-**Owner: You** enters these into each console's interactive form (no public API covers either) — **Owner: Agent** has derived every answer from this repo's actual permissions/dependencies (see Review Focus #5), so paste these rather than improvising:
+**Owner: You** enters these into each console's interactive form (no public API covers either) — **Owner: Agent** has derived every answer from this repo's actual schema/dependencies, not just `pubspec.yaml` (a whole-branch review caught the first draft under-declaring against `apps/api/src/db/schema/{users,device_tokens,ride-ratings}.ts` — corrected below), so paste these rather than improvising:
 
 **Google Play → each app → App content → Data safety:**
 - Does your app collect or share any required user data types? **Yes**
-- **Location** — Approximate location, Precise location: collected, not shared, used for "App functionality," not processed ephemerally, **required** (core booking/tracking feature).
-- **Personal info** — Name, Email address: collected (via Google Sign-In/Firebase Auth), not shared, used for "App functionality" and "Account management," required to use the app.
-- **Device or other IDs** — collected (Firebase Cloud Messaging registration token), not shared, used for "App functionality" (push notifications only).
-- All other data categories (Financial info, Health, Messages, Photos/Videos, Audio, Files/docs, Calendar, Contacts, App activity, Web browsing, App info/performance): **not collected**.
+- **Location** — Approximate location, Precise location: collected, not shared, used for "App functionality," not processed ephemerally, **required** (core booking/tracking feature). Google Play's own IARC questionnaire (separate from this Data Safety section) asks whether the app shares a user's physical location with other users — answer **Yes** there (a rider's and matched driver's live positions are shared with each other during a trip).
+- **Personal info** — Name (required), Phone number (required — `users.mobile` is `NOT NULL`), Email address (optional — only if the rider signs up with email/password or Google; driver accounts are admin-provisioned and may have no email at all): collected, not shared, used for "App functionality" and "Account management," required to use the app.
+- **Device or other IDs** — collected (Firebase Cloud Messaging registration token) and **linked to your identity**, not "not linked" (`device_tokens.user_id` references `users.id` — it identifies a specific account, not an anonymous device), used for "App functionality" (push notifications only).
+- **App activity** — User-generated content: the optional free-text comment a rider can leave with a 1–5 star rating (`ride_ratings.comment`) — collected, not shared, used for "App functionality."
+- All other data categories (Financial info, Health, Messages, Photos/Videos, Audio, Files/docs, Calendar, Contacts, Web browsing, App info/performance): **not collected**.
 - Is all collected data encrypted in transit? **Yes.**
-- Do you provide a way to request data deletion? **Yes** — point this at the "Data retention and deletion" section of `/privacy` (Task C1).
+- Do you provide a way to request data deletion? **Yes, but only out-of-app today** — point this at the "Data retention and deletion" section of `/privacy` (Task C1). **This is a real submission risk, not just a form answer** — see the blocker below.
 
 **Google Play → each app → App content** (remaining sections):
 - Privacy policy URL: `https://sevarath.rajendrakhope.com/privacy`
 - Ads: **No ads.**
-- Content rating questionnaire: answer every category (violence, sexual content, profanity, controlled substances, gambling, user-generated content) **"No"/"None"** — this is a ride-booking utility app with no such content anywhere in the codebase. Expect an "Everyone" rating outcome.
+- Content rating questionnaire: answer violence/sexual content/profanity/controlled substances/gambling/user-generated-content-sharing-publicly as **"No"/"None"** (none of that exists in this codebase) — but answer **"Yes"** to the question about sharing a user's physical location with other users (see above). Expect this to land around "Everyone" with a location-sharing disclosure, not a plain "Everyone" with every question "No" as an earlier draft of this task assumed.
 - Target audience and content: target age **18 and older** is the honest answer (it's a campus-staff-oriented utility, not designed or marketed to children) — select "No" for "is this app designed for children."
 - Government app: **No.**
 - Financial features declaration: **None** (no payment/fare feature exists).
 
 **Apple App Store Connect → each app → App Privacy:**
 - Data Used to Track You: **None.**
-- Data linked to your identity: **Location (Precise Location)**, **Contact Info (Name, Email Address)** — purpose: **App Functionality**.
-- Data not linked to your identity: **Identifiers (Device ID)** — the FCM token — purpose: **App Functionality**.
-- All other categories (Financial Info, Health & Fitness, Contacts, User Content, Browsing History, Search History, Diagnostics, Purchases): **Not Collected.**
+- Data linked to your identity: **Location (Precise Location)**, **Contact Info (Name, Phone Number, and Email Address where collected)**, **Identifiers (Device ID — the FCM token; linked, per `device_tokens.user_id`)**, **User Content (the optional rating comment)** — purpose: **App Functionality**.
+- All other categories (Financial Info, Health & Fitness, Browsing History, Search History, Diagnostics, Purchases, Data Not Linked to You): **Not Collected** / not applicable — every data type above is linked to the account, none is collected anonymously.
 
-**Apple App Store Connect → each app → Age Rating questionnaire:** answer every category **"None"** (no cartoon/realistic violence, no mature themes, no gambling, no unrestricted web access, no user-generated content) — expect a **4+** outcome.
+**Apple App Store Connect → each app → Age Rating questionnaire:** answer every content category (cartoon/realistic violence, mature themes, gambling, unrestricted web access) **"None"** — but note the questionnaire's "sharing of your location" toggle (if asked) the same way as Play's: **Yes**, location is shared between a matched rider and driver.
+
+**New blocker this review surfaced — in-app account deletion:** the rider app lets a user register in-app (email/password or Google), but `lib/features/profile/profile_screen.dart` only has a logout action — no in-app "delete my account" path. Apple (Guideline 5.1.1(v)) and Google Play (its account-deletion policy, plus a public web deletion-request link for Play specifically) both require this for any app with in-app account creation, independent of what Task C4's Data Safety answer says. **This plan does not implement it** — it's a product feature, out of this plan's scope, and should be treated as a pre-submission blocker for the rider app specifically (the driver app's accounts are admin-provisioned, not self-registered, and is a materially weaker case for the same requirement — confirm with each platform's current policy text before assuming it's exempt).
 
 ---
 
 ### Task C5: App Review / Play Console reviewer notes + demo accounts
 
-**Owner: You** — creating two real, working accounts against the production backend is not something an agent can safely or usefully do on your behalf. **Owner: Agent** drafts the exact text to paste once those accounts exist.
+**Owner: You** — creating two real, working accounts against the production backend is not something an agent can safely or usefully do on your behalf. **Owner: Agent** drafts the exact text to paste once those accounts exist. (Corrected after a whole-branch review: an earlier draft of this task assumed both flavors sign in with Google. Checked directly against `lib/features/auth/login_screen.dart` — the Google Sign-In button is wrapped in `if (!FlavorConfig.isDriver)`, so it only exists for the rider app. Both flavors otherwise sign in with a mobile number/email + password.)
 
-- [ ] **Step 1 (You):** create one real rider account and one real driver account against production (sign in through the actual app with two Google accounts you control, or ask the backend admin to provision them), and note the sign-in email for each.
+- [ ] **Step 1 (You):** create one real rider account (sign up in-app with a mobile number + password, or Google) and one real driver account (ask the backend admin to provision one, since drivers can't self-register) against production. Note each account's sign-in identifier (mobile number or email) and password.
 
-- [ ] **Step 2 (Agent-drafted, paste into both consoles' review-notes fields — Google Play's "App access" instructions and Apple App Store Connect's "App Review Information → Notes"):**
+- [ ] **Step 2 (You, before filling in Step 3's notes):** arrange for a real driver to be online and within range during the review window, or expect the reviewer to get stuck on "Finding your ride" indefinitely — a rider booking needs a matched, online, nearby driver to proceed past that screen, which spoofed GPS alone does not provide. Also record or arrange a short screen-recording of the full booking → live-tracking → completed-ride flow, since **Apple reviewers generally do not spoof their device's GPS** even when given coordinates — the notes below ask them to, but a demo video is the real fallback if that doesn't work.
+
+- [ ] **Step 3 (Agent-drafted, paste into both consoles' review-notes fields — Google Play's "App access" instructions and Apple App Store Connect's "App Review Information → Notes" — attach Step 2's video/recording link wherever the console allows a URL):**
 
 ```
 SevaRath is a ride-booking app limited to one physical campus: Diamond Hall
 Shanti Van, Abu Road, India (approx. 24.5313075, 72.7947805). The app checks
-the reviewing device's real GPS location and will show "You're too far from
-campus" more than ~2 km outside that point - this is expected app behavior,
-not a bug.
+the device's real GPS location at ride-confirmation time (not at login) and
+will show "You're too far from campus" more than ~2 km outside that point -
+this is expected app behavior, not a bug.
 
-To review booking/navigation screens, please set the test device's location
-to 24.5313075, 72.7947805 (or anywhere within about 2 km of it) before
-signing in.
+To review the booking flow, please set the test device's location to
+24.5313075, 72.7947805 (or anywhere within about 2 km of it) before
+confirming a ride. A demo recording of the full flow is also attached/linked
+here in case your review process does not simulate GPS: <fill in from Step 2>
 
 Demo account (rider app, com.rajendrakhope.sevarath):
-  Email: <fill in from Step 1>
-  Sign-in method: Google Sign-In - use the Google account above.
+  Sign-in identifier: <fill in from Step 1 - mobile number or email>
+  Password: <fill in from Step 1>
+  Sign-in method: mobile/email + password (Google Sign-In is also available
+  for this app, but is not required to review it).
 
 Demo account (driver app, com.rajendrakhope.sevarath.driver):
-  Email: <fill in from Step 1>
-  Sign-in method: Google Sign-In - use the Google account above.
+  Sign-in identifier: <fill in from Step 1 - mobile number or email>
+  Password: <fill in from Step 1>
+  Sign-in method: mobile/email + password - this app has no Google
+  Sign-In and no self-registration; this account was created by a campus
+  administrator.
+
+A real driver account will be online and nearby during the review window
+so a booking can actually be matched - see the attached recording if a
+live match isn't available when this is reviewed.
 
 There is no payment, fare, or purchase flow anywhere in either app.
 ```
 
-- [ ] **Step 3 (You):** fill in the two real emails from Step 1 into the bracketed placeholders above before pasting into each console.
+- [ ] **Step 4 (You):** fill in the two real sign-in identifiers/passwords from Step 1 and the recording link from Step 2 into the bracketed placeholders above before pasting into each console.
 
 ---
 

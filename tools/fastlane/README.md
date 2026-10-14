@@ -78,6 +78,19 @@ Local/manual: push Android store-listing text for both apps from tools/fastlane/
 
 ----
 
+
+## debugcwd
+
+### debugcwd print_cwd
+
+```sh
+[bundle exec] fastlane debugcwd print_cwd
+```
+
+
+
+----
+
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
 
 More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).
